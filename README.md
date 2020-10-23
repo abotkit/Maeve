@@ -1,2 +1,2 @@
-# Maeve
-Maeve formerly known as abotkit abstraction layer
+# maeve
+maeve formerly known as abotkit abstraction layer
