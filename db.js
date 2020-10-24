@@ -1,7 +1,6 @@
 const sqlite3 = require("sqlite3").verbose();
 const config = require("./config.json");
 const axios = require("axios").default;
-const { rasaDirectory, readNLUMDData, readPhrases } = require("./rasa.js");
 
 const db = new sqlite3.Database(config.DATABASE_PATH, async (error) => {
   if (error) {
@@ -196,7 +195,9 @@ const initDatabase = async () => {
       }
     }
   }
-  if (!Object.values(bots).some((x) => x.type === "rasa")) {
+  // TODO: readd code after switching to rasa 2.x and use charlotte REST calls instead of imported functions
+
+  /*if (!Object.values(bots).some((x) => x.type === "rasa")) {
     const host = "http://localhost";
     const port = 5005;
     await executeQuery(
@@ -250,7 +251,7 @@ const initDatabase = async () => {
         }
       }
     }
-  }
+  }*/
 };
 
 module.exports = {
