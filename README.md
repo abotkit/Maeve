@@ -11,7 +11,7 @@ npm start # or npm run dev
 # environment variables
 
 |         name        |        description             |    default           |
-|-----------------------------------------------------------------------------|
+|---------------------|--------------------------------|----------------------|
 | ABOTKIT_ROBERT_PORT | port for REST server of robert |   5000               |
 | ABOTKIT_ROBERT_URL  | url for reaching robert        |   http://localhost   |
 | ABOTKIT_MAEVE_PORT  | port for starting maeve        |   3000               |
