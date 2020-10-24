@@ -5,7 +5,7 @@ maeve keeps all bots together and stores it's information and also abstracts bet
 
 ```zsh
 npm i
-node maeve.js
+npm start # or npm run dev 
 ```
 
 # environment variables

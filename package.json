@@ -1,12 +1,12 @@
 {
-  "name": "abotkit",
+  "name": "maeve",
   "version": "1.0.0",
   "description": "A bot kit (backend) abstraction layer for various chat bot frameworks",
-  "main": "botkit.js",
+  "main": "maeve.js",
   "scripts": {
-    "start": "node botkit.js",
+    "start": "node maeve.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "./node_modules/.bin/nodemon botkit.js"
+    "dev": "./node_modules/.bin/nodemon maeve.js"
   },
   "author": "abotkit.io",
   "license": "MIT",
