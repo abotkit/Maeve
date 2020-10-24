@@ -658,7 +658,7 @@ app.post("/intent", async (req, res) => {
   res.status(200).json({ id: intent.id });
 });
 
-const port = process.env.ABOTKIT_SERVER_PORT || 3000;
+const port = process.env.ABOTKIT_MAEVE_PORT || 3000;
 
 app.listen(port, async () => {
   await initDatabase();

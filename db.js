@@ -82,8 +82,8 @@ const initDatabase = async () => {
   const bots = await executeSelectQuery("SELECT id, type FROM bots");
 
   if (bots.length === 0) {
-    const host = "http://localhost";
-    const port = process.env.ABOTKIT_CORE_SERVER_PORT || 5000;
+    const host = process.env.ABOTKIT_ROBERT_URL || "http://localhost";
+    const port = process.env.ABOTKIT_ROBERT_PORT || 5000;
     await executeQuery(
       "INSERT INTO bots (name, host, port, type) VALUES (?, ?, ?, ?)",
       ["Default Bot", host, port, "abotkit"]
