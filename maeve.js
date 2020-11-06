@@ -175,7 +175,7 @@ app.get("/bot/:name/intents", async (req, res) => {
 
   try {
     const response = await axios.get(`${bot.host}:${bot.port}/example`);
-    res.json([...new Set(Object.values(response.data))]);
+    res.json(response.data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
