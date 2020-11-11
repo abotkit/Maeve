@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require("express");
 const app = express();
 const {
@@ -6,10 +7,63 @@ const {
   executeSelectQuery,
 } = require("./db.js");
 const cors = require("cors");
-const { response } = require("express");
 const axios = require("axios").default;
 app.use(express.json());
 app.use(cors());
+
+const keycloak = {
+  enabled: typeof process.env.ABOTKIT_MAEVE_USE_KEYCLOAK !== 'undefined' && process.env.ABOTKIT_MAEVE_USE_KEYCLOAK.toLowerCase() === 'true',
+  realm: process.env.ABOTKIT_MAEVE_KEYCLOAK_REALM,
+  url: `${process.env.ABOTKIT_MAEVE_KEYCLOAK_HOST}:${process.env.ABOTKIT_MAEVE_KEYCLOAK_PORT}`,
+  client_id: process.env.ABOTKIT_MAEVE_KEYCLOAK_CLIENT
+};
+
+const MAEVE_ADMIN_ROLE = 'maeve-admin';
+
+const hasAuthorizationHeader = req => {
+  if (keycloak.enabled) {
+    return typeof req.headers['authorization'] !== 'undefined' && req.headers['authorization'].split(' ')[0] === 'Bearer';
+  } else {
+    return false;
+  }
+}
+
+const decodeToken = req => {
+  const token = req.headers['authorization'].split(' ')[1];
+  return JSON.parse( Buffer.from( token.split('.')[1], 'base64' ).toString() );   
+}
+
+const validateTokenIfExists = async (req, res, next) => {
+  if (hasAuthorizationHeader(req)) {
+    try {
+      const { realm, url } = keycloak;
+      const user = await axios.get(`${url}/auth/realms/${realm}/protocol/openid-connect/userinfo`, {
+        headers: { 'Authorization': req.headers['authorization'] }
+      });
+      const token = decodeToken(req);
+      req.user = {
+        ...user.data,
+        roles: token.resource_access[keycloak.client_id].roles
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      next();
+    }
+  } else {
+    next();
+  }
+}
+
+const hasUserRole = (user, role) => {
+  if (keycloak.enabled) {
+    return typeof user !== 'undefined' && user.roles.includes(role);
+  } else {
+    return true;
+  }
+} 
+
+app.use(validateTokenIfExists);
 
 const getBotByName = async name => {
   const sql = "SELECT * FROM bots WHERE name=?";
@@ -59,6 +113,10 @@ app.get('/bots', async (req, res) => {
 });
 
 app.post('/bot', async (req, res) => {
+  if (!hasUserRole(req.user, MAEVE_ADMIN_ROLE)) {
+    return res.status(401).end();
+  }
+
   const { name, host, port } = req.body;
   const sql = 'INSERT INTO bots (name, host, port, type) VALUES (?, ?, ?, ?)';
   const type = req.body.type.toLowerCase() === 'charlotte' ? 'charlotte' : 'robert';
@@ -98,10 +156,18 @@ app.get("/bot/:name/settings", async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 
-  res.json({ ...bot, language: response.data });
+  if (!hasUserRole(req.user, `${req.params.name}-write`)) {
+    res.json({ host: '', port: '', type: '', language: response.data });
+  } else {
+    res.json({ ...bot, language: response.data });
+  }
 });
 
 app.get("/bot/:name/actions", async (req, res) => {
+  if (!hasUserRole(req.user, `${req.params.name}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.params.name);
   if (error) {
     return res.status(status).json({ error: error });
@@ -130,6 +196,10 @@ app.get("/bot/:name/phrases", async (req, res) => {
 });
 
 app.delete("/phrase", async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
@@ -148,6 +218,10 @@ app.delete("/phrase", async (req, res) => {
 });
 
 app.post("/phrases", async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
@@ -168,6 +242,10 @@ app.post("/phrases", async (req, res) => {
 });
 
 app.get("/bot/:name/intents", async (req, res) => {
+  if (!hasUserRole(req.user, `${req.params.name}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.params.name);
   if (error) {
     return res.status(status).json({ error: error });
@@ -182,6 +260,10 @@ app.get("/bot/:name/intents", async (req, res) => {
 });
 
 app.post('/language', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
@@ -218,6 +300,10 @@ app.post("/handle", async (req, res) => {
 });
 
 app.post("/explain", async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
@@ -236,6 +322,10 @@ app.post("/explain", async (req, res) => {
 });
 
 app.get("/intent/:intent/bot/:name/examples", async (req, res) => {
+  if (!hasUserRole(req.user, `${req.params.name}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.params.name);
   if (error) {
     return res.status(status).json({ error: error });
@@ -250,6 +340,10 @@ app.get("/intent/:intent/bot/:name/examples", async (req, res) => {
 });
 
 app.post('/example', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
@@ -268,6 +362,10 @@ app.post('/example', async (req, res) => {
 });
 
 app.delete('/example', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
@@ -285,6 +383,10 @@ app.delete('/example', async (req, res) => {
 });
 
 app.post("/intent", async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
