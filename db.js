@@ -1,12 +1,14 @@
 const sqlite3 = require("sqlite3").verbose();
 const config = require("./config.json");
+const bunyan = require('bunyan');
+const logger = bunyan.createLogger({name: 'maeve'});
 
 const db = new sqlite3.Database(config.DATABASE_PATH, async (error) => {
   if (error) {
-    console.error(error.message);
+    logger.error(error.message);
     throw error;
   } else {
-    console.log("Successfully connect to db.sqlite");
+    logger.info("Successfully connect to db.sqlite");
   }
 });
 

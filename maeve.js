@@ -11,12 +11,24 @@ const axios = require("axios").default;
 app.use(express.json());
 app.use(cors());
 
+const bunyan = require('bunyan');
+const logger = bunyan.createLogger({name: 'maeve'});
+
+logger.level(process.env.ABOTKIT_MAEVE_LOG_LEVEL || 'info');
+
 const keycloak = {
   enabled: typeof process.env.ABOTKIT_MAEVE_USE_KEYCLOAK !== 'undefined' && process.env.ABOTKIT_MAEVE_USE_KEYCLOAK.toLowerCase() === 'true',
   realm: process.env.ABOTKIT_MAEVE_KEYCLOAK_REALM,
   url: `${process.env.ABOTKIT_MAEVE_KEYCLOAK_HOST}:${process.env.ABOTKIT_MAEVE_KEYCLOAK_PORT}`,
   client_id: process.env.ABOTKIT_MAEVE_KEYCLOAK_CLIENT
 };
+
+if (keycloak.enabled) {
+  logger.info('USE KEYCLOAK WITH CONFIGURATION:');
+  logger.info(keycloak);
+} else {
+  logger.info('KEYCLOAK DISABLED');
+}
 
 const MAEVE_ADMIN_ROLE = 'maeve-admin';
 
@@ -46,7 +58,7 @@ const validateTokenIfExists = async (req, res, next) => {
         roles: token.resource_access[keycloak.client_id].roles
       }
     } catch (error) {
-      console.error(error);
+      logger.error(error);
     } finally {
       next();
     }
@@ -427,5 +439,5 @@ const port = process.env.ABOTKIT_MAEVE_PORT || 3000;
 
 app.listen(port, async () => {
   await initDatabase();
-  console.log(`"It's Time You And I Had A Chat" - I'm listening on port ${port}!`);
+  logger.info(`"It's Time You And I Had A Chat" - I'm listening on port ${port}!`);
 });
