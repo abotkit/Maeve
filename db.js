@@ -42,6 +42,15 @@ const initDatabase = async () => {
     port INTEGER NOT NULL,
     created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     type TEXT NOT NULL)`);
+
+  await executeQuery(`CREATE TABLE IF NOT EXISTS integrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    bot INTEGER NOT NULL,
+    config TEXT,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
 };
 
 module.exports = {

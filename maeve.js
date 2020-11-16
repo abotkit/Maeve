@@ -1,4 +1,5 @@
 require('dotenv').config()
+const clementine = require('./clementine');
 const express = require("express");
 const app = express();
 const {
@@ -30,7 +31,7 @@ const hasAuthorizationHeader = req => {
 
 const decodeToken = req => {
   const token = req.headers['authorization'].split(' ')[1];
-  return JSON.parse( Buffer.from( token.split('.')[1], 'base64' ).toString() );   
+  return JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
 }
 
 const validateTokenIfExists = async (req, res, next) => {
@@ -61,7 +62,7 @@ const hasUserRole = (user, role) => {
   } else {
     return true;
   }
-} 
+}
 
 app.use(validateTokenIfExists);
 
@@ -147,7 +148,7 @@ app.get("/bot/:name/settings", async (req, res) => {
   const { bot, error, status } = await getBotByName(req.params.name);
   if (error) {
     return res.status(status).json({ error: error });
-  } 
+  }
 
   let response;
   try {
@@ -277,19 +278,19 @@ app.post('/language', async (req, res) => {
     return res.status(500).json(error);
   }
 
-  res.status(200).end();  
+  res.status(200).end();
 });
 
 app.post("/handle", async (req, res) => {
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
-  } 
+  }
 
   let response;
   try {
     response = await axios.post(`${bot.host}:${bot.port}/handle`, {
-      identifier: req.body.identifier, 
+      identifier: req.body.identifier,
       query: req.body.query
     });
   } catch (error) {
@@ -307,7 +308,7 @@ app.post("/explain", async (req, res) => {
   const { bot, error, status } = await getBotByName(req.body.bot);
   if (error) {
     return res.status(status).json({ error: error });
-  } 
+  }
 
   let response;
   try {
@@ -422,6 +423,82 @@ app.post("/intent", async (req, res) => {
   }
   res.status(200).end();
 });
+
+// --- Clementine ---
+app.post('/integration', async (req, res) => {
+  /* req.body = {
+      bot: 'bot-id',
+      name: '',
+      uuid: '' [optional on update],
+      type: 'integration type e.g. wordpress'
+      config: {url: ''}
+  }*/
+  try {
+    if (typeof req.body.uuid === 'undefined') {
+      const integration = await clementine.createIntegration(req.body);
+      res.json(integration);
+    } else {
+      const integration = await clementine.updateIntegration(req.body);
+      res.json(integration);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error });
+  }
+});
+
+app.delete('/integration', async (req, res) => {
+  // req.body = { bot: '', uuid: '' }
+  if (typeof req.query.bot === 'undefined' || typeof req.query.uuid === 'undefined') {
+    res.status(400).json({ error: 'Missing parameters. Needed {bot, uuid}' });
+  } else {
+    try {
+      await clementine.deleteIntegration({ bot: req.query.bot, uuid: req.query.uuid });
+      res.status(200).end();
+    } catch (error) {
+      res.status(500).json({ error: error });
+    }
+  }
+});
+
+app.get('/integration', async (req, res) => {
+  // req.body = { bot: '', uuid: '' }
+  try {
+    if (typeof req.query.bot === 'undefined' && typeof req.query.uuid === 'undefined') {
+      res.status(400).end();
+    } else {
+      const integration = await clementine.getIntegration({ bot: req.query.bot, uuid: req.query.uuid });
+      if (typeof integration !== 'undefined') {
+        res.status(200).json(integration);
+      } else {
+        res.status(204).end();
+      }
+    }
+  } catch (error) {
+    res.status(500).json({ error: error });
+  }
+});
+
+app.get('/integrations', async (req, res) => {
+  /* req.body = {
+      bot: 'bot-id',
+      type: 'integration type e.g. wordpress'
+  }*/
+  try {
+    const integrations = await clementine.getIntegrations(req.body);
+    res.status(200).json(integrations);
+  } catch (error) {
+    res.status(500).json({ error: error });
+  }
+});
+
+app.get('/integration/body', async (req, res) => {
+  try {
+    res.json(await clementine.generateIntegration(req.query.id));
+  } catch (error) {
+    res.status(500).json({ error: error });
+  }
+});
+// --- Clementine ---
 
 const port = process.env.ABOTKIT_MAEVE_PORT || 3000;
 
