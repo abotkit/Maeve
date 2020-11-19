@@ -130,8 +130,14 @@ app.post('/bot', async (req, res) => {
   }
 
   const { name, host, port } = req.body;
+
+  if (typeof name === 'undefined' || typeof host === 'undefined' || typeof port === 'undefined' || typeof req.body.type === 'undefined') {
+    return res.status(400).json({ error: 'you need to provide bot name, host, port and type'});
+  }
+
   const sql = 'INSERT INTO bots (name, host, port, type) VALUES (?, ?, ?, ?)';
   const type = req.body.type.toLowerCase() === 'charlotte' ? 'charlotte' : 'robert';
+
   try {
     await executeQuery(sql, [name, host, port, type]);
   } catch (error) {
@@ -139,6 +145,63 @@ app.post('/bot', async (req, res) => {
   }
 
   res.status(200).end();
+});
+
+app.put('/bot', async (req, res) => {
+  if (!hasUserRole(req.user, MAEVE_ADMIN_ROLE)) {
+    return res.status(401).end();
+  }
+
+  let sql = 'UPDATE bots SET ';
+  const params = []
+  const { name, host, port } = req.body;
+
+  if (typeof name === 'undefined') {
+    return res.status(400).json({ error: 'you need to provide a bot name'});
+  }
+
+  if (typeof host !== 'undefined') {
+    sql += 'host = ?';
+    params.push(host);
+  }
+  
+  if (typeof port !== 'undefined') {
+    sql += typeof host !== 'undefined' ? ', port = ?' : 'port = ?';
+    params.push(port);
+  }
+
+  if (params.length === 0) {
+    return res.status(200).end();
+  }
+
+  sql += ' WHERE name = ?';
+  params.push(name);
+  
+  try {
+    await executeQuery(sql, params);
+  } catch (error) {
+    res.status(500).json({ error: error });
+  }
+
+  res.status(200).end();
+});
+
+app.delete('/bot', async (req, res) => {
+  if (!hasUserRole(req.user, MAEVE_ADMIN_ROLE)) {
+    return res.status(401).end();
+  }
+
+  if (typeof req.body.name === 'undefined') {
+    return res.status(400).json({ error: 'you need to provide a bot name'});
+  }
+
+  try {
+    await executeQuery('DELETE FROM bots WHERE name=?', [req.body.name]);
+  } catch (error) {
+    res.status(500).json({ error: error });
+  }
+
+  res.status(200).end();  
 });
 
 app.get("/bot/:name/status", async (req, res) => {
