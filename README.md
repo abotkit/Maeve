@@ -18,6 +18,8 @@ npm start # or npm run dev
 | ABOTKIT_MAEVE_KEYCLOAK_PORT | port of a running keycloak instance | '' (e.g. 8080) |
 | ABOTKIT_MAEVE_KEYCLOAK_REALM | your keycloak realm | '' (e.g. myrealm) |
 | ABOTKIT_MAEVE_KEYCLOAK_CLIENT | your keycloak client id (name) | '' (e.g. myclient) |
+| ABOTKIT_MAEVE_USE_SSL | force maeve to talk ssl encrypted. If no cert.key and cert.pem file is provided within the ssl folder, maeve is automatically going to create a self signed cert | false |
+| ABOTKIT_MAEVE_LOG_LEVEL | log level (debug, info, warn, error) | 'info' |
 
 # Issues
 

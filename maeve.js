@@ -7,6 +7,7 @@ const {
   executeSelectQuery,
 } = require("./db.js");
 const cors = require("cors");
+const fs = require("fs");
 const axios = require("axios").default;
 app.use(express.json());
 app.use(cors());
@@ -500,7 +501,47 @@ app.post("/intent", async (req, res) => {
 
 const port = process.env.ABOTKIT_MAEVE_PORT || 3000;
 
-app.listen(port, async () => {
-  await initDatabase();
-  logger.info(`"It's Time You And I Had A Chat" - I'm listening on port ${port}!`);
-});
+if (typeof process.env.ABOTKIT_MAEVE_USE_SSL !== 'undefined' && process.env.ABOTKIT_MAEVE_USE_SSL.toLowerCase() === 'true') {
+  const https = require('https');
+  const hostname = require('os').hostname()
+
+  require('dns').lookup(hostname, async (error, ip) => {
+    if (!error) {
+      try {
+        if (!fs.existsSync('./ssl/cert.pem') || !fs.existsSync('./ssl/cert.key')) {
+          const path = require('path');
+          logger.warn('cert.pem or cert.key in the ssl directory not found. Try to generate a self-signed cert.');
+          require('child_process').spawnSync('sh', ['./ssl/generate_self_signed_cert.sh', ip, hostname, path.resolve(__dirname, 'ssl')]);
+        }
+      
+        const httpsOptions = {
+          key: fs.readFileSync('./ssl/cert.key'),
+          cert: fs.readFileSync('./ssl/cert.pem')
+        }
+        https.createServer(httpsOptions, app).listen(port, async () => {
+          await initDatabase();
+          logger.info(`"It's Time You And I Had A Chat" - I'm listening ssl encrypted on port ${port}!`)
+        });
+      } catch (error) {
+        logger.warn('self-signed cert generation failed. Start listening unencrypted instead')
+        logger.error(error)
+        app.listen(port, async () => {
+          await initDatabase();
+          logger.info(`"It's Time You And I Had A Chat" - I'm listening unencrypted on port ${port}!`);
+        });
+      }
+    } else {
+      logger.warn('self-signed cert generation failed. Start listening unencrypted instead')
+      logger.error(error)
+      app.listen(port, async () => {
+        await initDatabase();
+        logger.info(`"It's Time You And I Had A Chat" - I'm listening unencrypted on port ${port}!`);
+      });
+    }
+  });
+} else {
+  app.listen(port, async () => {
+    await initDatabase();
+    logger.info(`"It's Time You And I Had A Chat" - I'm listening unencrypted on port ${port}!`);
+  });
+}
