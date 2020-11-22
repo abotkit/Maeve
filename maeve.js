@@ -284,7 +284,7 @@ app.delete("/phrase", async (req, res) => {
   try {
     await axios.delete(`${bot.host}:${bot.port}/phrases`, {
       data: {
-        phrases: [{ intent: req.body.intent, text: req.body.text }],
+        phrases: [{ intent: req.body.intent, text: req.body.phrase }],
       },
     });
     res.status(200).end();
