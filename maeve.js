@@ -408,7 +408,7 @@ app.get("/intent/:intent/bot/:name/examples", async (req, res) => {
   }
 
   try {
-    const response = await axios.get(`${bot.host}:${bot.port}/example/${req.params.intent}`);
+    const response = await axios.get(`${bot.host}:${bot.port}/intent/examples/?intent=${encodeURIComponent(req.params.intent)}`);
     res.json(response.data);
   } catch (error) {
     res.status(500).json({ error: error.message });
