@@ -449,7 +449,7 @@ app.delete('/example', async (req, res) => {
 
   try {
     await axios.delete(`${bot.host}:${bot.port}/example`, {
-      data: { example: req.body.example }
+      data: { example: req.body.example, intent: req.body.intent }
     });
   } catch (error) {
     return res.status(500).json(error);
