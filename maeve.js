@@ -511,7 +511,12 @@ if (typeof process.env.ABOTKIT_MAEVE_USE_SSL !== 'undefined' && process.env.ABOT
         if (!fs.existsSync('./ssl/cert.pem') || !fs.existsSync('./ssl/cert.key')) {
           const path = require('path');
           logger.warn('cert.pem or cert.key in the ssl directory not found. Try to generate a self-signed cert.');
-          require('child_process').spawnSync('sh', ['./ssl/generate_self_signed_cert.sh', ip, hostname, path.resolve(__dirname, 'ssl')]);
+          const certGenerator = require('child_process').spawnSync('sh', ['./ssl/generate_self_signed_cert.sh', ip, hostname, path.resolve(__dirname, 'ssl')]);
+          logger.info(certGenerator.stdout);
+          logger.info(`generate_self_signed_cert.sh finished with code: ${certGenerator.status}`);
+          if (certGenerator.status !== 0) {
+            logger.warn(certGenerator.stderr);
+          }
         }
       
         const httpsOptions = {
@@ -524,7 +529,7 @@ if (typeof process.env.ABOTKIT_MAEVE_USE_SSL !== 'undefined' && process.env.ABOT
         });
       } catch (error) {
         logger.warn('self-signed cert generation failed. Start listening unencrypted instead')
-        logger.error(error)
+        logger.warn(error)
         app.listen(port, async () => {
           await initDatabase();
           logger.info(`"It's Time You And I Had A Chat" - I'm listening unencrypted on port ${port}!`);

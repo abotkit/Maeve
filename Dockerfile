@@ -1,7 +1,7 @@
 FROM node:alpine3.10
 
 RUN apk update
-RUN apk add openssh
+RUN apk add openssl
 
 COPY package.json /opt/abotkit-server/package.json
 WORKDIR /opt/abotkit-server
