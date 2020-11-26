@@ -503,47 +503,34 @@ const port = process.env.ABOTKIT_MAEVE_PORT || 3000;
 
 if (typeof process.env.ABOTKIT_MAEVE_USE_SSL !== 'undefined' && process.env.ABOTKIT_MAEVE_USE_SSL.toLowerCase() === 'true') {
   const https = require('https');
-  const hostname = require('os').hostname()
+  const pem = require('pem');
 
-  require('dns').lookup(hostname, async (error, ip) => {
-    if (!error) {
-      try {
-        if (!fs.existsSync('./ssl/cert.pem') || !fs.existsSync('./ssl/cert.key')) {
-          const path = require('path');
-          logger.warn('cert.pem or cert.key in the ssl directory not found. Try to generate a self-signed cert.');
-          const certGenerator = require('child_process').spawnSync('sh', ['./ssl/generate_self_signed_cert.sh', ip, hostname, path.resolve(__dirname, 'ssl')]);
-          logger.info(certGenerator.stdout);
-          logger.info(`generate_self_signed_cert.sh finished with code: ${certGenerator.status}`);
-          if (certGenerator.status !== 0) {
-            logger.warn(certGenerator.stderr);
-          }
-        }
-      
-        const httpsOptions = {
-          key: fs.readFileSync('./ssl/cert.key'),
-          cert: fs.readFileSync('./ssl/cert.pem')
-        }
-        https.createServer(httpsOptions, app).listen(port, async () => {
-          await initDatabase();
-          logger.info(`"It's Time You And I Had A Chat" - I'm listening ssl encrypted on port ${port}!`)
-        });
-      } catch (error) {
+  if (!fs.existsSync('./ssl/cert.pem') || !fs.existsSync('./ssl/cert.key')) {
+    pem.createCertificate({ selfSigned: true, days: 365, altNames: ['abotkit.io, www.abotkit.io']}, (error, keys) => {
+      if (error) {
         logger.warn('self-signed cert generation failed. Start listening unencrypted instead')
         logger.warn(error)
         app.listen(port, async () => {
           await initDatabase();
           logger.info(`"It's Time You And I Had A Chat" - I'm listening unencrypted on port ${port}!`);
         });
+      } else {
+        https.createServer({ key: keys.serviceKey, cert: keys.certificate }, app).listen(port, async () => {
+          await initDatabase();
+          logger.info(`"It's Time You And I Had A Chat" - I'm listening ssl encrypted on port ${port}!`)
+        });
       }
-    } else {
-      logger.warn('self-signed cert generation failed. Start listening unencrypted instead')
-      logger.error(error)
-      app.listen(port, async () => {
-        await initDatabase();
-        logger.info(`"It's Time You And I Had A Chat" - I'm listening unencrypted on port ${port}!`);
-      });
+    });
+  } else {
+    const httpsOptions = {
+      key: fs.readFileSync('./ssl/cert.key'),
+      cert: fs.readFileSync('./ssl/cert.pem')
     }
-  });
+    https.createServer(httpsOptions, app).listen(port, async () => {
+      await initDatabase();
+      logger.info(`"It's Time You And I Had A Chat" - I'm listening ssl encrypted on port ${port}!`)
+    });
+  }
 } else {
   app.listen(port, async () => {
     await initDatabase();
