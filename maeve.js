@@ -506,6 +506,8 @@ if (typeof process.env.ABOTKIT_MAEVE_USE_SSL !== 'undefined' && process.env.ABOT
   const pem = require('pem');
 
   if (!fs.existsSync('./ssl/cert.pem') || !fs.existsSync('./ssl/cert.key')) {
+    https.globalAgent.options.rejectUnauthorized = false;
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
     pem.createCertificate({ selfSigned: true, days: 365, altNames: ['abotkit.io, www.abotkit.io']}, (error, keys) => {
       if (error) {
         logger.warn('self-signed cert generation failed. Start listening unencrypted instead')
