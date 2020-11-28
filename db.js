@@ -58,7 +58,6 @@ const initDatabase = async () => {
       const bots = config['DEFAULT_BOTS'];
       logger.info(`Inserting ${bots.length} default bot(s) into the database.`);
       for (const bot of bots) {
-        console.log(bot)
         await executeQuery("INSERT INTO bots (name, host, port, type) VALUES (?, ?, ?, ?)", 
         [bot.name, bot.host, bot.port, bot.type.toLowerCase() === 'charlotte' ? 'charlotte' : 'robert']);
       }
