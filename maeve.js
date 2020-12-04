@@ -11,6 +11,7 @@ const fs = require("fs");
 const axios = require("axios").default;
 app.use(express.json());
 app.use(cors());
+const https = require('https');
 
 const bunyan = require('bunyan');
 const { env } = require('process');
@@ -65,7 +66,7 @@ const validateTokenIfExists = async (req, res, next) => {
           headers: { 'Authorization': req.headers['authorization'] }
         });
       }
-      
+
       const token = decodeToken(req);
       req.user = {
         ...user.data,
@@ -515,7 +516,6 @@ app.post("/intent", async (req, res) => {
 const port = process.env.ABOTKIT_MAEVE_PORT || 3000;
 
 if (typeof process.env.ABOTKIT_MAEVE_USE_SSL !== 'undefined' && process.env.ABOTKIT_MAEVE_USE_SSL.toLowerCase() === 'true') {
-  const https = require('https');
   const pem = require('pem');
 
   if (!fs.existsSync('./ssl/cert.pem') || !fs.existsSync('./ssl/cert.key')) {
