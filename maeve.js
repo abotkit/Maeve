@@ -13,6 +13,7 @@ app.use(express.json());
 app.use(cors());
 
 const bunyan = require('bunyan');
+const { env } = require('process');
 const logger = bunyan.createLogger({name: 'maeve'});
 
 logger.level(process.env.ABOTKIT_MAEVE_LOG_LEVEL || 'info');
@@ -50,9 +51,21 @@ const validateTokenIfExists = async (req, res, next) => {
   if (hasAuthorizationHeader(req)) {
     try {
       const { realm, url } = keycloak;
-      const user = await axios.get(`${url}/auth/realms/${realm}/protocol/openid-connect/userinfo`, {
-        headers: { 'Authorization': req.headers['authorization'] }
-      });
+      const user = null;
+
+      if (process.env.ABOTKIT_MAEVE_USE_SSL) {
+        const agent = new https.Agent({  
+          rejectUnauthorized: false
+        });
+        user = await axios.get(`${url}/auth/realms/${realm}/protocol/openid-connect/userinfo`, {
+          headers: { 'Authorization': req.headers['authorization'], httpsAgent: agent }
+        });
+      } else {
+        user = await axios.get(`${url}/auth/realms/${realm}/protocol/openid-connect/userinfo`, {
+          headers: { 'Authorization': req.headers['authorization'] }
+        });
+      }
+      
       const token = decodeToken(req);
       req.user = {
         ...user.data,
