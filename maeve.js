@@ -17,13 +17,13 @@ const bunyan = require('bunyan');
 const { env } = require('process');
 const logger = bunyan.createLogger({name: 'maeve'});
 
-logger.level(process.env.ABOTKIT_MAEVE_LOG_LEVEL || 'info');
+logger.level(env.ABOTKIT_MAEVE_LOG_LEVEL || 'info');
 
 const keycloak = {
-  enabled: typeof process.env.ABOTKIT_MAEVE_USE_KEYCLOAK !== 'undefined' && process.env.ABOTKIT_MAEVE_USE_KEYCLOAK.toLowerCase() === 'true',
-  realm: process.env.ABOTKIT_MAEVE_KEYCLOAK_REALM,
-  url: `${process.env.ABOTKIT_MAEVE_KEYCLOAK_HOST}:${process.env.ABOTKIT_MAEVE_KEYCLOAK_PORT}`,
-  client_id: process.env.ABOTKIT_MAEVE_KEYCLOAK_CLIENT
+  enabled: typeof env.ABOTKIT_MAEVE_USE_KEYCLOAK !== 'undefined' && env.ABOTKIT_MAEVE_USE_KEYCLOAK.toLowerCase() === 'true',
+  realm: env.ABOTKIT_MAEVE_KEYCLOAK_REALM,
+  url: `${env.ABOTKIT_MAEVE_KEYCLOAK_HOST}:${env.ABOTKIT_MAEVE_KEYCLOAK_PORT}`,
+  client_id: env.ABOTKIT_MAEVE_KEYCLOAK_CLIENT
 };
 
 if (keycloak.enabled) {
@@ -54,7 +54,7 @@ const validateTokenIfExists = async (req, res, next) => {
       const { realm, url } = keycloak;
       const user = null;
 
-      if (process.env.ABOTKIT_MAEVE_USE_SSL) {
+      if (env.ABOTKIT_MAEVE_USE_SSL) {
         const agent = new https.Agent({  
           rejectUnauthorized: false
         });
@@ -73,7 +73,15 @@ const validateTokenIfExists = async (req, res, next) => {
         roles: token.resource_access[keycloak.client_id].roles
       }
     } catch (error) {
-      logger.error(error);
+      if (error.response) {
+        logger.warn(error.response.data);
+        logger.warn(error.response.status);
+        logger.warn(error.response.headers);
+      } else if (error.request) {
+        logger.warn(error.request);
+      } else {
+        logger.error(error.message);
+      }
     } finally {
       next();
     }
@@ -513,14 +521,14 @@ app.post("/intent", async (req, res) => {
   res.status(200).end();
 });
 
-const port = process.env.ABOTKIT_MAEVE_PORT || 3000;
+const port = env.ABOTKIT_MAEVE_PORT || 3000;
 
-if (typeof process.env.ABOTKIT_MAEVE_USE_SSL !== 'undefined' && process.env.ABOTKIT_MAEVE_USE_SSL.toLowerCase() === 'true') {
+if (typeof env.ABOTKIT_MAEVE_USE_SSL !== 'undefined' && env.ABOTKIT_MAEVE_USE_SSL.toLowerCase() === 'true') {
   const pem = require('pem');
 
   if (!fs.existsSync('./ssl/cert.pem') || !fs.existsSync('./ssl/cert.key')) {
     https.globalAgent.options.rejectUnauthorized = false;
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
     pem.createCertificate({ selfSigned: true, days: 365, altNames: ['abotkit.io, www.abotkit.io']}, (error, keys) => {
       if (error) {
         logger.warn('self-signed cert generation failed. Start listening unencrypted instead')
