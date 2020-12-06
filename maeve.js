@@ -52,7 +52,7 @@ const validateTokenIfExists = async (req, res, next) => {
   if (hasAuthorizationHeader(req)) {
     try {
       const { realm, url } = keycloak;
-      const user = null;
+      let user = null;
 
       if (env.ABOTKIT_MAEVE_USE_SSL) {
         const agent = new https.Agent({  
