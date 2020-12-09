@@ -480,6 +480,12 @@ app.delete('/example', async (req, res) => {
   res.status(200).end();
 });
 
+app.post('/register/integration', (req, res) => {
+  const address = req.headers.host;
+  logger.info(`${address} wants to act as integration`);
+  res.status(200).end();
+});
+
 app.post("/intent", async (req, res) => {
   if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
     return res.status(401).end();
