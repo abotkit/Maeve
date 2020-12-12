@@ -164,6 +164,7 @@ app.post('/bot', async (req, res) => {
   try {
     await executeQuery(sql, [name, host, port, type]);
   } catch (error) {
+    logger.error(error);
     res.status(500).json({ error: error });
   }
 

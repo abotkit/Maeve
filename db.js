@@ -53,7 +53,7 @@ const initDatabase = async () => {
 
   await executeQuery(`CREATE TABLE IF NOT EXISTS history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    query TEXT UNIQUE NOT NULL,
+    query TEXT NOT NULL,
     intent TEXT NOT NULL,
     bot TEXT NOT NULL,
     confidence TEXT NOT NULL,
