@@ -51,6 +51,14 @@ const initDatabase = async () => {
     name TEXT UNIQUE NOT NULL,
     value TEXT NOT NULL)`);
 
+  await executeQuery(`CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query TEXT UNIQUE NOT NULL,
+    intent TEXT NOT NULL,
+    bot TEXT NOT NULL,
+    confidence TEXT NOT NULL,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+
   const meta = await executeSelectQuery("SELECT value FROM meta WHERE name=?", ['INITIALIZED']);
   
   if (meta.length < 1) {

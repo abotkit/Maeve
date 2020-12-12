@@ -390,6 +390,14 @@ app.post("/handle", async (req, res) => {
       identifier: req.body.identifier, 
       query: req.body.query
     });
+
+    const explanation = await axios.post(`${bot.host}:${bot.port}/explain`, {
+      identifier: req.body.identifier,
+      query: req.body.query
+    });
+
+    const sql = 'INSERT INTO history (query, intent, bot, confidence) VALUES (?, ?, ?, ?)';
+    await executeQuery(sql, [req.body.query, explanation.data.intent, req.body.bot, explanation.data.score]);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -397,26 +405,18 @@ app.post("/handle", async (req, res) => {
   res.json(response.data);
 });
 
-app.post("/explain", async (req, res) => {
-  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+app.get('/bot/:name/history/', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.params.name}-write`)) {
     return res.status(401).end();
   }
 
-  const { bot, error, status } = await getBotByName(req.body.bot);
-  if (error) {
-    return res.status(status).json({ error: error });
-  } 
-
-  let response;
   try {
-    response = await axios.post(`${bot.host}:${bot.port}/explain`, {
-      query: req.body.query
-    });
+    const history = await executeSelectQuery('SELECT * FROM history WHERE bot=? ORDER BY created', [req.params.name]);
+    res.json(history);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    logger.error(error);
+    res.status(500).json(error);
   }
-
-  res.json(response.data);
 });
 
 app.get("/intent/:intent/bot/:name/examples", async (req, res) => {
