@@ -46,6 +46,16 @@ const initDatabase = async () => {
     created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     type TEXT NOT NULL)`);
 
+
+  await executeQuery(`CREATE TABLE IF NOT EXISTS integrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    bot INTEGER NOT NULL,
+    config TEXT,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+
   await executeQuery(`CREATE TABLE IF NOT EXISTS meta (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
@@ -72,7 +82,6 @@ const initDatabase = async () => {
     }
     await executeQuery("INSERT INTO meta (name, value) VALUES (?, ?)", ['INITIALIZED', 'true']);
   }
-
 };
 
 module.exports = {
