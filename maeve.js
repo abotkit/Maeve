@@ -1,5 +1,4 @@
 require('dotenv').config()
-const clementine = require('./clementine');
 const express = require("express");
 const app = express();
 const {
@@ -487,12 +486,6 @@ app.delete('/example', async (req, res) => {
   res.status(200).end();
 });
 
-app.post('/register/integration', (req, res) => {
-  const address = req.headers.host;
-  logger.info(`${address} wants to act as integration`);
-  res.status(200).end();
-});
-
 app.post("/intent", async (req, res) => {
   if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
     return res.status(401).end();
@@ -535,76 +528,160 @@ app.post("/intent", async (req, res) => {
 });
 
 app.post('/integration', async (req, res) => {
-  /* req.body = {
-      bot: 'bot-id',
-      name: '',
-      uuid: '' [optional on update],
-      type: 'integration type e.g. wordpress'
-      config: {url: ''}
-  }*/
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
+  const address = req.headers.host;
+
   try {
-    if (typeof req.body.uuid === 'undefined') {
-      const integration = await clementine.createIntegration(req.body);
-      res.json(integration);
-    } else {
-      const integration = await clementine.updateIntegration(req.body);
-      res.json(integration);
-    }
+      const sql = 'INSERT INTO integrations (bot, name, url) VALUES (?, ?, ?)';
+      await executeQuery(sql, [req.body.bot, req.body.name, address]);
+      res.status(200).end();
   } catch (error) {
+    logger.error(error);
     res.status(500).json({ error: error });
   }
 });
 
-app.delete('/integration', async (req, res) => {
-  // req.body = { bot: '', uuid: '' }
-  if (typeof req.query.bot === 'undefined' || typeof req.query.uuid === 'undefined') {
-    res.status(400).json({ error: 'Missing parameters. Needed {bot, uuid}' });
-  } else {
-    try {
-      await clementine.deleteIntegration({ bot: req.query.bot, uuid: req.query.uuid });
-      res.status(200).end();
-    } catch (error) {
-      res.status(500).json({ error: error });
+app.put('/integration', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
+  const sql = 'SELECT * FROM integrations WHERE name=?';
+  const integration = await executeSelectQuery(sql, [req.body.name]);
+  
+  if (integration.length > 0) {
+    let updatedIntegration = { ...integration[0] };
+    if (typeof req.body.name !== 'undefined') {
+      updatedIntegration.name = req.body.name;
     }
+    if (typeof req.body.bot !== 'undefined') {
+      updatedIntegration.bot = req.body.bot;
+    }
+    if (typeof req.body.url !== 'undefined') {
+      updatedIntegration.url = req.body.url;
+    }
+      
+    await executeQuery('UPDATE integrations SET name = ?, bot = ?, url = ? WHERE id=?',
+      [updatedIntegration.name, updatedIntegration.bot, updatedIntegration.url, updatedIntegration.id]);
+
+    res.status(200).end();
+  } else {
+    logger.warn(error);
+    res.status(404).json({ error: 'Could not update integration that does not exist.' });
   }
 });
 
-app.get('/integration', async (req, res) => {
-  // req.body = { bot: '', uuid: '' }
+app.delete('/integration', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   try {
-    if (typeof req.query.bot === 'undefined' && typeof req.query.uuid === 'undefined') {
-      res.status(400).end();
-    } else {
-      const integration = await clementine.getIntegration({ bot: req.query.bot, uuid: req.query.uuid });
-      if (typeof integration !== 'undefined') {
-        res.status(200).json(integration);
-      } else {
-        res.status(204).end();
-      }
-    }
+    const sql = 'DELETE FROM integrations WHERE bot=? AND name=?';
+    await executeQuery(sql, [req.body.bot, req.body.name]);
+
+    res.status(200).end();
   } catch (error) {
+    logger.error(error);
     res.status(500).json({ error: error });
   }
 });
 
 app.get('/integrations', async (req, res) => {
-  /* req.body = {
-      bot: 'bot-id',
-      type: 'integration type e.g. wordpress'
-  }*/
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
   try {
-    const integrations = await clementine.getIntegrations(req.body);
+    const integrations = await executeSelectQuery('SELECT bot, name, url FROM integrations');
     res.status(200).json(integrations);
   } catch (error) {
+    logger.error(error);
     res.status(500).json({ error: error });
   }
 });
 
-app.get('/integration/body', async (req, res) => {
+app.get('/integration/settings', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
+  let result;
   try {
-    res.json(await clementine.generateIntegration(req.query.id));
+    result = await executeSelectQuery('SELECT url FROM integrations WHERE bot=? and name=?', [req.body.bot, req.body.name]);
   } catch (error) {
-    res.status(500).json({ error: error });
+    logger.error(error);
+    return res.status(500).json({ error: error });
+  }
+
+  if (result.length === 0) {
+    return res.status(404).json({ error: 'Could not found any matching integration' })
+  }
+  const integration = result[0];
+
+  try {
+    const component = await axios.get(`${integration.url}/settings`);
+    res.json(component);
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json(error);
+  }
+});
+
+app.post('/integration/settings', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
+  let result;
+  try {
+    result = await executeSelectQuery('SELECT url FROM integrations WHERE bot=? and name=?', [req.body.bot, req.body.name]);
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ error: error });
+  }
+
+  if (result.length === 0) {
+    return res.status(404).json({ error: 'Could not found any matching integration' })
+  }
+  const integration = result[0];
+
+  try {
+    await axios.post(`${integration.url}/settings`, { settings: req.body.settings });
+    res.status(200).end();
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json(error);
+  }
+});
+
+app.post('/integration/execute', async (req, res) => {
+  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+    return res.status(401).end();
+  }
+
+  let result;
+  try {
+    result = await executeSelectQuery('SELECT url FROM integrations WHERE bot=? and name=?', [req.body.bot, req.body.name]);
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ error: error });
+  }
+
+  if (result.length === 0) {
+    return res.status(404).json({ error: 'Could not found any matching integration' })
+  }
+  const integration = result[0];
+
+  try {
+    const response = await axios.post(`${integration.url}/execute`, { data: req.body.data });
+    res.json(response.data);
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json(error);
   }
 });
 
