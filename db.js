@@ -49,11 +49,9 @@ const initDatabase = async () => {
 
   await executeQuery(`CREATE TABLE IF NOT EXISTS integrations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    uuid TEXT NOT NULL,
-    name TEXT NOT NULL,
-    type TEXT NOT NULL,
+    name TEXT UNIQUE NOT NULL,
     bot INTEGER NOT NULL,
-    config TEXT,
+    url TEXT,
     created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
 
   await executeQuery(`CREATE TABLE IF NOT EXISTS meta (
