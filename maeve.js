@@ -528,15 +528,19 @@ app.post("/intent", async (req, res) => {
 });
 
 app.post('/integration', async (req, res) => {
-  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+  if (!hasUserRole(req.user, MAEVE_ADMIN_ROLE)) {
     return res.status(401).end();
   }
 
-  const address = req.headers.host;
+  const sql = 'SELECT * FROM integrations WHERE name=?';
+  const integration = await executeSelectQuery(sql, [req.body.name]);
+  if (integration.length > 0) {
+    return res.status(303).json(`${req.body.name} already reqgistered`);
+  }
 
   try {
-      const sql = 'INSERT INTO integrations (bot, name, url) VALUES (?, ?, ?)';
-      await executeQuery(sql, [req.body.bot, req.body.name, address]);
+      const sql = 'INSERT INTO integrations (name, url) VALUES (?, ?)';
+      await executeQuery(sql, [req.body.name, req.body.url]);
       res.status(200).end();
   } catch (error) {
     logger.error(error);
@@ -545,7 +549,7 @@ app.post('/integration', async (req, res) => {
 });
 
 app.put('/integration', async (req, res) => {
-  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+  if (!hasUserRole(req.user, MAEVE_ADMIN_ROLE)) {
     return res.status(401).end();
   }
 
@@ -557,15 +561,12 @@ app.put('/integration', async (req, res) => {
     if (typeof req.body.name !== 'undefined') {
       updatedIntegration.name = req.body.name;
     }
-    if (typeof req.body.bot !== 'undefined') {
-      updatedIntegration.bot = req.body.bot;
-    }
     if (typeof req.body.url !== 'undefined') {
       updatedIntegration.url = req.body.url;
     }
       
-    await executeQuery('UPDATE integrations SET name = ?, bot = ?, url = ? WHERE id=?',
-      [updatedIntegration.name, updatedIntegration.bot, updatedIntegration.url, updatedIntegration.id]);
+    await executeQuery('UPDATE integrations SET name = ?, url = ? WHERE id=?',
+      [updatedIntegration.name, updatedIntegration.url, updatedIntegration.id]);
 
     res.status(200).end();
   } else {
@@ -575,13 +576,13 @@ app.put('/integration', async (req, res) => {
 });
 
 app.delete('/integration', async (req, res) => {
-  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
+  if (!hasUserRole(req.user, MAEVE_ADMIN_ROLE)) {
     return res.status(401).end();
   }
 
   try {
-    const sql = 'DELETE FROM integrations WHERE bot=? AND name=?';
-    await executeQuery(sql, [req.body.bot, req.body.name]);
+    const sql = 'DELETE FROM integrations WHERE name=?';
+    await executeQuery(sql, [req.body.name]);
 
     res.status(200).end();
   } catch (error) {
@@ -596,7 +597,15 @@ app.get('/integrations', async (req, res) => {
   }
 
   try {
-    const integrations = await executeSelectQuery('SELECT bot, name, url FROM integrations');
+    const integrations = await executeSelectQuery('SELECT name, url FROM integrations');
+
+    for (const integration of integrations) {
+      console.log(integration)
+      const settings = (await axios.get(`${integration.url}/settings`)).data;
+      integration.settings = settings;
+      integration.url = undefined;
+    }
+
     res.status(200).json(integrations);
   } catch (error) {
     logger.error(error);
@@ -604,14 +613,10 @@ app.get('/integrations', async (req, res) => {
   }
 });
 
-app.get('/integration/settings', async (req, res) => {
-  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
-    return res.status(401).end();
-  }
-
+app.get('/integration/:name/settings', async (req, res) => {
   let result;
   try {
-    result = await executeSelectQuery('SELECT url FROM integrations WHERE bot=? and name=?', [req.body.bot, req.body.name]);
+    
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ error: error });
@@ -623,7 +628,7 @@ app.get('/integration/settings', async (req, res) => {
   const integration = result[0];
 
   try {
-    const component = await axios.get(`${integration.url}/settings`);
+    
     res.json(component);
   } catch (error) {
     logger.error(error);
@@ -638,7 +643,7 @@ app.post('/integration/settings', async (req, res) => {
 
   let result;
   try {
-    result = await executeSelectQuery('SELECT url FROM integrations WHERE bot=? and name=?', [req.body.bot, req.body.name]);
+    result = await executeSelectQuery('SELECT url FROM integrations WHERE name=?', [req.body.name]);
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ error: error });
@@ -650,7 +655,7 @@ app.post('/integration/settings', async (req, res) => {
   const integration = result[0];
 
   try {
-    await axios.post(`${integration.url}/settings`, { settings: req.body.settings });
+    await axios.post(`${integration.url}/settings`, { settings: req.body.settings, bot: req.body.bot });
     res.status(200).end();
   } catch (error) {
     logger.error(error);
@@ -665,7 +670,7 @@ app.post('/integration/execute', async (req, res) => {
 
   let result;
   try {
-    result = await executeSelectQuery('SELECT url FROM integrations WHERE bot=? and name=?', [req.body.bot, req.body.name]);
+    result = await executeSelectQuery('SELECT url FROM integrations WHERE name=?', [req.body.name]);
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ error: error });
@@ -677,7 +682,7 @@ app.post('/integration/execute', async (req, res) => {
   const integration = result[0];
 
   try {
-    const response = await axios.post(`${integration.url}/execute`, { data: req.body.data });
+    const response = await axios.post(`${integration.url}/execute`, { data: req.body.data, bot: req.body.bot });
     res.json(response.data);
   } catch (error) {
     logger.error(error);

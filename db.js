@@ -50,7 +50,6 @@ const initDatabase = async () => {
   await executeQuery(`CREATE TABLE IF NOT EXISTS integrations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
-    bot INTEGER NOT NULL,
     url TEXT,
     created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
 
