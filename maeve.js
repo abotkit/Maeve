@@ -655,7 +655,7 @@ app.post('/integration/settings', async (req, res) => {
   const integration = result[0];
 
   try {
-    await axios.post(`${integration.url}/settings`, { settings: req.body.settings, bot: req.body.bot });
+    await axios.post(`${integration.url}/settings`, { data: req.body.data, bot: req.body.bot });
     res.status(200).end();
   } catch (error) {
     logger.error(error);
