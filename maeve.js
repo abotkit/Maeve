@@ -636,7 +636,7 @@ app.get('/integration/:name/settings', async (req, res) => {
   }
 });
 
-app.get('/integration/:name/ressouce', (req, res) => {
+app.get('/integration/:name/ressouce', async (req, res) => {
   const bot = req.query.bot || '';
   
   let result;
