@@ -636,6 +636,31 @@ app.get('/integration/:name/settings', async (req, res) => {
   }
 });
 
+app.get('/integration/:name/ressouce', (req, res) => {
+  const bot = req.query.bot || '';
+  
+  let result;
+  try {
+    result = await executeSelectQuery('SELECT url FROM integrations WHERE name=?', [req.params.name]);
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ error: error });
+  }
+
+  if (result.length === 0) {
+    return res.status(404).json({ error: 'Could not found any matching integration' })
+  }
+  const integration = result[0];
+
+  try {
+    const response = await axios.get(`${integration.url}/ressouce`, { params: { bot: bot } });
+    res.json(response.data);
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json(error);
+  }
+});
+
 app.post('/integration/settings', async (req, res) => {
   if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
     return res.status(401).end();
