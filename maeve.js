@@ -592,6 +592,8 @@ app.delete('/integration', async (req, res) => {
 });
 
 app.get('/integrations', async (req, res) => {
+  const bot = req.query.bot || '';
+
   if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
     return res.status(401).end();
   }
@@ -601,7 +603,7 @@ app.get('/integrations', async (req, res) => {
 
     for (const integration of integrations) {
       console.log(integration)
-      const settings = (await axios.get(`${integration.url}/settings`)).data;
+      const settings = (await axios.get(`${integration.url}/settings?bot=${bot}`)).data;
       integration.settings = settings;
       integration.url = undefined;
     }
@@ -613,10 +615,12 @@ app.get('/integrations', async (req, res) => {
   }
 });
 
-app.get('/integration/:name/settings', async (req, res) => {
+app.get('/integration/:name/resource', async (req, res) => {
+  const bot = req.query.bot || '';
+  
   let result;
   try {
-    
+    result = await executeSelectQuery('SELECT url FROM integrations WHERE name=?', [req.params.name]);
   } catch (error) {
     logger.error(error);
     return res.status(500).json({ error: error });
@@ -628,8 +632,10 @@ app.get('/integration/:name/settings', async (req, res) => {
   const integration = result[0];
 
   try {
+    const response = await axios.get(`${integration.url}/resource`, { params: { bot: bot } });
     
-    res.json(component);
+    res.setHeader('Content-Type', response.headers['content-type']);
+    res.send(response.data);
   } catch (error) {
     logger.error(error);
     return res.status(500).json(error);
