@@ -592,6 +592,8 @@ app.delete('/integration', async (req, res) => {
 });
 
 app.get('/integrations', async (req, res) => {
+  const bot = req.query.bot || '';
+
   if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
     return res.status(401).end();
   }
@@ -601,7 +603,7 @@ app.get('/integrations', async (req, res) => {
 
     for (const integration of integrations) {
       console.log(integration)
-      const settings = (await axios.get(`${integration.url}/settings`)).data;
+      const settings = (await axios.get(`${integration.url}/settings?bot=${bot}`)).data;
       integration.settings = settings;
       integration.url = undefined;
     }
@@ -613,30 +615,7 @@ app.get('/integrations', async (req, res) => {
   }
 });
 
-app.get('/integration/:name/settings', async (req, res) => {
-  let result;
-  try {
-    
-  } catch (error) {
-    logger.error(error);
-    return res.status(500).json({ error: error });
-  }
-
-  if (result.length === 0) {
-    return res.status(404).json({ error: 'Could not found any matching integration' })
-  }
-  const integration = result[0];
-
-  try {
-    
-    res.json(component);
-  } catch (error) {
-    logger.error(error);
-    return res.status(500).json(error);
-  }
-});
-
-app.get('/integration/:name/ressouce', async (req, res) => {
+app.get('/integration/:name/resource', async (req, res) => {
   const bot = req.query.bot || '';
   
   let result;
@@ -653,8 +632,10 @@ app.get('/integration/:name/ressouce', async (req, res) => {
   const integration = result[0];
 
   try {
-    const response = await axios.get(`${integration.url}/ressouce`, { params: { bot: bot } });
-    res.json(response.data);
+    const response = await axios.get(`${integration.url}/resource`, { params: { bot: bot } });
+    
+    res.setHeader('Content-Type', response.headers['content-type']);
+    res.send(response.data);
   } catch (error) {
     logger.error(error);
     return res.status(500).json(error);
