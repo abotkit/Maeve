@@ -539,8 +539,8 @@ app.post('/integration', async (req, res) => {
   }
 
   try {
-      const sql = 'INSERT INTO integrations (name, url) VALUES (?, ?)';
-      await executeQuery(sql, [req.body.name, req.body.url]);
+      const sql = 'INSERT INTO integrations (name, url, bot) VALUES (?, ?, ?)';
+      await executeQuery(sql, [req.body.name, req.body.url, req.body.bot]);
       res.status(200).end();
   } catch (error) {
     logger.error(error);
@@ -564,9 +564,12 @@ app.put('/integration', async (req, res) => {
     if (typeof req.body.url !== 'undefined') {
       updatedIntegration.url = req.body.url;
     }
+    if (typeof req.body.bot !== 'undefined') {
+      updatedIntegration.bot = req.body.bot;
+    }
       
-    await executeQuery('UPDATE integrations SET name = ?, url = ? WHERE id=?',
-      [updatedIntegration.name, updatedIntegration.url, updatedIntegration.id]);
+    await executeQuery('UPDATE integrations SET name = ?, url = ?, bot = ? WHERE id=?',
+      [updatedIntegration.name, updatedIntegration.url, updatedIntegration.bot, updatedIntegration.id]);
 
     res.status(200).end();
   } else {
@@ -594,24 +597,38 @@ app.delete('/integration', async (req, res) => {
 app.get('/integrations', async (req, res) => {
   const bot = req.query.bot || '';
 
-  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
-    return res.status(401).end();
-  }
+  if (bot !== '') {
+    try {
+      const integrations = await executeSelectQuery('SELECT name, url FROM integrations WHERE bot=? OR bot IS NULL', [bot]);
 
-  try {
-    const integrations = await executeSelectQuery('SELECT name, url FROM integrations');
+      for (const integration of integrations) {
+        console.log(integration)
+        const settings = (await axios.get(`${integration.url}/settings?bot=${bot}`)).data;
+        integration.settings = settings;
+        integration.url = undefined;
+      }
 
-    for (const integration of integrations) {
-      console.log(integration)
-      const settings = (await axios.get(`${integration.url}/settings?bot=${bot}`)).data;
-      integration.settings = settings;
-      integration.url = undefined;
+      res.status(200).json(integrations);
+    } catch (error) {
+      logger.error(error);
+      res.status(500).json({ error: error });
     }
+  } else {
+    try {
+      const integrations = await executeSelectQuery('SELECT name, url FROM integrations WHERE bot IS NULL');
 
-    res.status(200).json(integrations);
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ error: error });
+      for (const integration of integrations) {
+        console.log(integration)
+        const settings = (await axios.get(`${integration.url}/settings`)).data;
+        integration.settings = settings;
+        integration.url = undefined;
+      }
+
+      res.status(200).json(integrations);
+    } catch (error) {
+      logger.error(error);
+      res.status(500).json({ error: error });
+    }    
   }
 });
 
