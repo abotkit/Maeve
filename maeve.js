@@ -535,12 +535,17 @@ app.post('/integration', async (req, res) => {
   const sql = 'SELECT * FROM integrations WHERE name=?';
   const integration = await executeSelectQuery(sql, [req.body.name]);
   if (integration.length > 0) {
-    return res.status(303).json(`${req.body.name} already reqgistered`);
+    if (integration[0].url !== req.body.url) {
+      await executeQuery('UPDATE integrations SET url = ? WHERE id=?', [req.body.url, integration[0].id]);
+      return res.status(204).json(`Upgraded url of ${req.body.name} to ${req.body.url}`)
+    } else {
+      return res.status(303).json(`${req.body.name} already reqgistered`);
+    }
   }
 
   try {
-      const sql = 'INSERT INTO integrations (name, url) VALUES (?, ?)';
-      await executeQuery(sql, [req.body.name, req.body.url]);
+      const sql = 'INSERT INTO integrations (name, url, bot) VALUES (?, ?, ?)';
+      await executeQuery(sql, [req.body.name, req.body.url, req.body.bot]);
       res.status(200).end();
   } catch (error) {
     logger.error(error);
@@ -564,9 +569,12 @@ app.put('/integration', async (req, res) => {
     if (typeof req.body.url !== 'undefined') {
       updatedIntegration.url = req.body.url;
     }
+    if (typeof req.body.bot !== 'undefined') {
+      updatedIntegration.bot = req.body.bot;
+    }
       
-    await executeQuery('UPDATE integrations SET name = ?, url = ? WHERE id=?',
-      [updatedIntegration.name, updatedIntegration.url, updatedIntegration.id]);
+    await executeQuery('UPDATE integrations SET name = ?, url = ?, bot = ? WHERE id=?',
+      [updatedIntegration.name, updatedIntegration.url, updatedIntegration.bot, updatedIntegration.id]);
 
     res.status(200).end();
   } else {
@@ -593,26 +601,47 @@ app.delete('/integration', async (req, res) => {
 
 app.get('/integrations', async (req, res) => {
   const bot = req.query.bot || '';
+  let integrations = [];
 
-  if (!hasUserRole(req.user, `${req.body.bot}-write`)) {
-    return res.status(401).end();
-  }
+  if (bot !== '') {
+    try {
+      integrations = await executeSelectQuery('SELECT name, url FROM integrations WHERE bot=? OR bot IS NULL', [bot]);
+    } catch (error) {
+      logger.error(error);
+    }
+  } else {
+    try {
+      integrations = await executeSelectQuery('SELECT name, url FROM integrations WHERE bot IS NULL');
+    } catch (error) {
+      logger.error(error);
+    }   
+  } 
 
-  try {
-    const integrations = await executeSelectQuery('SELECT name, url FROM integrations');
+  const response = [];
 
-    for (const integration of integrations) {
-      console.log(integration)
-      const settings = (await axios.get(`${integration.url}/settings?bot=${bot}`)).data;
+  for (const integration of integrations) {
+    try {
+      const CancelToken = axios.CancelToken;
+      const source = CancelToken.source();
+      const connectionTimeout = setTimeout(() => {
+        source.cancel();
+      }, 2000);
+
+      const settings = (await axios.get(`${integration.url}/settings`, {
+        cancelToken: source.token
+      })).data;
+      clearTimeout(connectionTimeout);
       integration.settings = settings;
       integration.url = undefined;
+      response.push(integration);
+    } catch (error) {
+      logger.warn(integration);
+      logger.warn(error);
+      integration.settings = null;
     }
-
-    res.status(200).json(integrations);
-  } catch (error) {
-    logger.error(error);
-    res.status(500).json({ error: error });
   }
+
+  res.status(200).json(response);
 });
 
 app.get('/integration/:name/resource', async (req, res) => {
