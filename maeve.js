@@ -627,7 +627,7 @@ app.get('/integrations', async (req, res) => {
         source.cancel();
       }, 2000);
 
-      const settings = (await axios.get(`${integration.url}/settings`, {
+      const settings = (await axios.get(`${integration.url}/settings?bot=${bot}`, {
         cancelToken: source.token
       })).data;
       clearTimeout(connectionTimeout);
